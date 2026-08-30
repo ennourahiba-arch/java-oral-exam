@@ -18,6 +18,8 @@ A thread is the smallest unit of execution within a program, representing a sequ
 
 ## 1) Thread Life Cycle
 
+A thread is the smallest unit of execution within a program, representing a sequence of instructions that can run concurrently with other threads.
+
 A thread moves through distinct states. Conceptually, this is often explained as:
 
 `NEW → RUNNABLE → RUNNING → (BLOCKED / WAITING / TIMED_WAITING) → TERMINATED`
