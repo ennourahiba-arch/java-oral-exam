@@ -45,7 +45,7 @@ Official states are exactly:
 - `TIMED_WAITING`
 - `TERMINATED`
 
-So in Java’s model, a thread that is “actually executing” is still represented as **RUNNABLE**.
+So in Java's model, a thread that is "actually executing" is still represented as **RUNNABLE**.
 
 ---
 
@@ -105,6 +105,97 @@ t.start(); // RIGHT: creates a new thread; JVM later invokes run()
 - `run()` directly = no new thread.
 - `start()` = real concurrent execution path.
 
+### Deep Understanding: Why This Matters
+
+#### `t.run()` — Direct Method Call
+When you call `run()` directly, you're treating it like **any normal method**. The code inside `run()` executes **on your current thread**, not a new thread.
+
+**Timeline:**
+```
+Main Thread:
+  1. Create MyThread object
+  2. Call t.run()  ← method executes here, on main thread
+  3. run() finishes
+  4. Next line of code runs
+```
+
+**No new thread is created.** It's just sequential execution.
+
+#### `t.start()` — Proper Threading
+When you call `start()`, the **JVM creates a brand-new thread** and then calls `run()` on that new thread. Your main thread continues immediately.
+
+**Timeline:**
+```
+Main Thread:                    New Thread:
+  1. Create MyThread object
+  2. Call t.start()
+  3. JVM creates new thread ─→  1. run() executes here
+  4. Main continues next line    2. run() finishes
+  5. Main thread finishes        3. New thread terminates
+```
+
+Both threads run **concurrently** (at overlapping times).
+
+### Practical Example
+
+```java
+class MyThread extends Thread {
+    public void run() {
+        for (int i = 0; i < 3; i++) {
+            System.out.println("Worker: " + i);
+            try { Thread.sleep(100); } catch (Exception e) {}
+        }
+    }
+}
+
+public static void main(String[] args) {
+    MyThread t = new MyThread();
+    
+    System.out.println("--- Using run() directly ---");
+    t.run();  // WRONG WAY
+    System.out.println("Main done");
+    
+    System.out.println("\n--- Using start() ---");
+    MyThread t2 = new MyThread(); // must create new instance for start()
+    t2.start(); // RIGHT WAY
+    System.out.println("Main done"); // prints BEFORE worker finishes!
+}
+```
+
+**Output with `t.run()`:**
+```
+--- Using run() directly ---
+Worker: 0
+Worker: 1
+Worker: 2
+Main done              ← waits for run() to finish
+```
+
+**Output with `t.start()`:**
+```
+--- Using start() ---
+Main done             ← prints immediately!
+Worker: 0
+Worker: 1
+Worker: 2             ← happens in parallel
+```
+
+### Key Differences Table
+
+| Aspect | `run()` | `start()` |
+|--------|---------|----------|
+| **Execution** | On current thread | On new thread |
+| **Concurrency** | No | Yes |
+| **Type of call** | Normal method call | Thread lifecycle method |
+| **When it returns** | After all `run()` code finishes | Immediately |
+| **Can call multiple times** | Yes (it's just a method) | No (throws `IllegalThreadStateException`) |
+
+### Why This Matters
+If you always call `run()` directly, **your code runs sequentially** — defeating the entire purpose of threading. You get **no concurrency benefit**. Use `start()` when you want true concurrent execution across multiple threads.
+
+### Exam Precision
+> `start()` initiates the thread lifecycle: the JVM creates a new thread and schedules it to execute `run()` asynchronously. Calling `run()` directly bypasses thread creation entirely and executes synchronously on the calling thread.
+
 ---
 
 ## 4) Deadlock and Prevention via Global Lock Ordering
@@ -117,7 +208,7 @@ Deadlock typically appears when threads lock shared resources in opposite order:
 
 This creates circular wait → permanent standstill.
 
-A key insight: once a thread is blocked on a lock, it cannot “negotiate” or “swap” locks. It is paused while still holding what it already acquired.
+A key insight: once a thread is blocked on a lock, it cannot "negotiate" or "swap" locks. It is paused while still holding what it already acquired.
 
 ### Practical prevention strategy: consistent global lock order
 Force all threads to acquire multiple locks in one agreed order (e.g., lower account ID first).
@@ -150,7 +241,7 @@ Production-safe designs either:
 - add a deterministic tie-breaker lock/policy.
 
 ### Exam principle
-> One common way to prevent deadlock is to enforce a consistent, global lock ordering — ensuring all threads always acquire multiple locks in the same fixed order, which eliminates the circular wait[...]
+> One common way to prevent deadlock is to enforce a consistent, global lock ordering — ensuring all threads always acquire multiple locks in the same fixed order, which eliminates the circular wait condition.
 
 ---
 
@@ -171,7 +262,7 @@ They are different concurrency failures.
 Example scenario: lower-priority thread repeatedly preempted by constant higher-priority arrivals.
 
 ### Strong contrast line
-> Deadlock is a permanent standstill caused by circular resource dependencies — mathematically guaranteed to never resolve on its own. Starvation is a fairness problem where a thread is repeate[...]
+> Deadlock is a permanent standstill caused by circular resource dependencies — mathematically guaranteed to never resolve on its own. Starvation is a fairness problem where a thread is repeatedly denied resource access indefinitely but is not structurally locked in a cycle.
 
 ---
 
@@ -225,7 +316,7 @@ class Flag {
 - **Ordering (happens-before)**: a write to a volatile variable happens-before subsequent reads of that variable by other threads.
 
 ### Important precision
-A simplified teaching phrase is “read/write goes to main memory,” but exam-grade phrasing is:
+A simplified teaching phrase is "read/write goes to main memory," but exam-grade phrasing is:
 - implementations may still use caches,
 - yet JVM/CPU memory semantics enforce visibility and ordering guarantees for volatile accesses.
 
@@ -332,21 +423,21 @@ class Signal {
 ```
 
 ### Oral-ready precision line
-> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not rele[...] 
+> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not release locks.
 
 ---
 
 ## 8) Precision Corrections / Exam-Safe Refinements
 
 1. **State model precision**  
-   Conceptual “running” is okay for intuition, but official Java enum has no `RUNNING`; execution is represented by `RUNNABLE`.
+   Conceptual "running" is okay for intuition, but official Java enum has no `RUNNING`; execution is represented by `RUNNABLE`.
 
 2. **Termination wording**  
    Prefer: a thread terminates when `run()` exits normally or by uncaught exception.  
    Avoid relying on deprecated `Thread.stop()` language.
 
 3. **Volatile wording precision**  
-   Use visibility + happens-before terminology, not absolute “never cached.”
+   Use visibility + happens-before terminology, not absolute "never cached."
 
 4. **Atomicity reminder**  
    `volatile` does not make compound operations atomic (`x++` still unsafe without additional synchronization/atomics).
@@ -358,22 +449,22 @@ class Signal {
 
 ## 9) High-Value Oral One-Liners to Memorize
 
-- “Prefer `Runnable` because it separates task from thread and preserves single inheritance flexibility.”
-- “`start()` creates a new execution thread that invokes `run()`; direct `run()` is just a normal call on the current thread.”
-- “Use global lock ordering so all threads acquire shared locks in one fixed order, eliminating circular wait.”
-- “Deadlock is permanent circular waiting; starvation is indefinite postponement caused by unfair scheduling.”
-- “`volatile` guarantees visibility and ordering (happens-before) for a variable across threads, but not mutual exclusion or compound-operation atomicity.”
-- “`sleep()` does not release locks; `wait()` releases the monitor and requires synchronized context.”
+- "Prefer `Runnable` because it separates task from thread and preserves single inheritance flexibility."
+- "`start()` creates a new execution thread that invokes `run()`; direct `run()` is just a normal call on the current thread."
+- "Use global lock ordering so all threads acquire shared locks in one fixed order, eliminating circular wait."
+- "Deadlock is permanent circular waiting; starvation is indefinite postponement caused by unfair scheduling."
+- "`volatile` guarantees visibility and ordering (happens-before) for a variable across threads, but not mutual exclusion or compound-operation atomicity."
+- "`sleep()` does not release locks; `wait()` releases the monitor and requires synchronized context."
 
 ---
 
 ## 10) Possible Professor Questions (with Model Answers)
 
-### Q1) What are Java’s official thread states?
+### Q1) What are Java's official thread states?
 **A:** `NEW`, `RUNNABLE`, `BLOCKED`, `WAITING`, `TIMED_WAITING`, `TERMINATED`.
 
 ### Q2) Is there a `RUNNING` state in `Thread.State`?
-**A:** Not as an enum constant. In Java’s official model, actively executing threads are still represented as `RUNNABLE`.
+**A:** Not as an enum constant. In Java's official model, actively executing threads are still represented as `RUNNABLE`.
 
 ### Q3) Why is implementing `Runnable` often preferred to extending `Thread`?
 **A:** Because Java has single inheritance. `Runnable` avoids consuming the only `extends` slot and separates task logic from thread execution mechanism.
@@ -397,7 +488,7 @@ class Signal {
 **A:** No. `x++` is a non-atomic read-modify-write sequence. Use synchronization or atomic classes.
 
 ### Q10) Difference between `sleep()` and `wait()`?
-**A:** `sleep()` is `Thread`-based timed pause and does not release locks. `wait()` is `Object`-based coordination, must be called under synchronized monitor ownership, and releases the monitor w[...] 
+**A:** `sleep()` is `Thread`-based timed pause and does not release locks. `wait()` is `Object`-based coordination, must be called under synchronized monitor ownership, and releases the monitor while waiting.
 
 ### Q11) Why use `while` around `wait()`?
 **A:** To handle spurious wakeups and to re-check the guard condition after waking before proceeding.
