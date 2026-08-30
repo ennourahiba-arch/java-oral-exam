@@ -1,3 +1,5 @@
+A thread is the smallest unit of execution within a program, representing a sequence of instructions that can run concurrently with other threads.
+
 # 4-Threads
 
 ## Table of Contents
@@ -146,7 +148,7 @@ Production-safe designs either:
 - add a deterministic tie-breaker lock/policy.
 
 ### Exam principle
-> One common way to prevent deadlock is to enforce a consistent, global lock ordering — ensuring all threads always acquire multiple locks in the same fixed order, which eliminates the circular waiting condition that deadlocks require.
+> One common way to prevent deadlock is to enforce a consistent, global lock ordering — ensuring all threads always acquire multiple locks in the same fixed order, which eliminates the circular wait[...]
 
 ---
 
@@ -167,7 +169,7 @@ They are different concurrency failures.
 Example scenario: lower-priority thread repeatedly preempted by constant higher-priority arrivals.
 
 ### Strong contrast line
-> Deadlock is a permanent standstill caused by circular resource dependencies — mathematically guaranteed to never resolve on its own. Starvation is a fairness problem where a thread is repeatedly denied access to a resource by other threads, even though it isn't technically blocked forever.
+> Deadlock is a permanent standstill caused by circular resource dependencies — mathematically guaranteed to never resolve on its own. Starvation is a fairness problem where a thread is repeate[...]
 
 ---
 
@@ -328,7 +330,7 @@ class Signal {
 ```
 
 ### Oral-ready precision line
-> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not release held locks.
+> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not rele[...] 
 
 ---
 
@@ -393,7 +395,7 @@ class Signal {
 **A:** No. `x++` is a non-atomic read-modify-write sequence. Use synchronization or atomic classes.
 
 ### Q10) Difference between `sleep()` and `wait()`?
-**A:** `sleep()` is `Thread`-based timed pause and does not release locks. `wait()` is `Object`-based coordination, must be called under synchronized monitor ownership, and releases the monitor while waiting.
+**A:** `sleep()` is `Thread`-based timed pause and does not release locks. `wait()` is `Object`-based coordination, must be called under synchronized monitor ownership, and releases the monitor w[...] 
 
 ### Q11) Why use `while` around `wait()`?
 **A:** To handle spurious wakeups and to re-check the guard condition after waking before proceeding.
