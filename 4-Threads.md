@@ -13,6 +13,7 @@ A thread is the smallest unit of execution within a program, representing a sequ
 - [8) Precision Corrections / Exam-Safe Refinements](#8-precision-corrections--exam-safe-refinements)
 - [9) High-Value Oral One-Liners to Memorize](#9-high-value-oral-one-liners-to-memorize)
 - [10) Possible Professor Questions (with Model Answers)](#10-possible-professor-questions-with-model-answers)
+- [11) Thread Termination and Cancellation: stop(), interrupt(), and Safe Cleanup](#11-thread-termination-and-cancellation-stop-interrupt-and-safe-cleanup)
 
 ---
 
@@ -455,6 +456,8 @@ class Signal {
 - "Deadlock is permanent circular waiting; starvation is indefinite postponement caused by unfair scheduling."
 - "`volatile` guarantees visibility and ordering (happens-before) for a variable across threads, but not mutual exclusion or compound-operation atomicity."
 - "`sleep()` does not release locks; `wait()` releases the monitor and requires synchronized context."
+- "`Thread.stop()` is deprecated and unsafe — it can terminate a thread abruptly mid-operation and leave shared state inconsistent; there is no standard safe `Thread.kill()` in Java."
+- "`interrupt()` is the safe cooperative alternative: it sets the interrupted flag and can cause blocking calls (`sleep()`, `wait()`, `join()`) to throw `InterruptedException`, but the thread must still check/respond — it does not forcibly kill the thread."
 
 ---
 
@@ -495,3 +498,55 @@ class Signal {
 
 ### Q12) Can a terminated thread be restarted?
 **A:** No. Once terminated, that `Thread` instance cannot be started again; create a new thread object.
+
+### Q13) Why is `Thread.stop()` deprecated, and what should be used instead?
+**A:** `Thread.stop()` is deprecated and unsafe because it can terminate a thread abruptly, mid-operation, leaving shared state inconsistent and skipping proper cleanup. There is no standard safe `Thread.kill()` in Java. The safer alternative is cooperative cancellation via `interrupt()` (or a shared flag), which lets the thread notice the request and exit cleanly on its own terms.
+
+### Q14) What does `interrupt()` actually do?
+**A:** It sets the target thread's interrupted status flag. If the thread is currently blocked in `sleep()`, `wait()`, or `join()`, that call throws `InterruptedException` and clears the flag. `interrupt()` does not forcibly stop the thread — the thread's own code must check the flag or catch the exception and decide to exit.
+
+---
+
+## 11) Thread Termination and Cancellation: stop(), interrupt(), and Safe Cleanup
+
+### Why `Thread.stop()` is dangerous
+`Thread.stop()` is **deprecated and unsafe**. It can terminate a thread abruptly, at any point in its execution — even mid-way through modifying shared data or while holding a lock. Because the thread is halted without warning, any locks it held are released abruptly, potentially leaving shared objects in a corrupted, inconsistent state, with no guarantee that cleanup code (like a `finally` block) runs correctly. For this reason, `stop()` should not be used in modern Java: it can break class invariants and cleanup assumptions that the rest of the program relies on.
+
+There is also **no standard safe `Thread.kill()`** method in Java — abrupt, forced termination of a thread is not a supported safe operation.
+
+### `interrupt()`: the safer, cooperative alternative
+`interrupt()` does **not** forcibly kill a thread. Instead, it:
+- sets the thread's **interrupted status flag**, and
+- if the thread is currently blocked in a call like `sleep()`, `wait()`, or `join()`, causes that call to throw `InterruptedException` (and clears the flag).
+
+The target thread must **cooperate** — it needs to periodically check its interrupted status (or catch `InterruptedException`) and decide to stop what it's doing and exit cleanly. This gives the thread a chance to release locks properly and run any necessary cleanup, unlike `stop()`.
+
+### Code example: handling `interrupt()` correctly
+
+```java
+class Worker extends Thread {
+    @Override
+    public void run() {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                // do work
+                Thread.sleep(100); // may throw InterruptedException
+            }
+        } catch (InterruptedException e) {
+            // sleep()/wait()/join() clears the flag when it throws,
+            // so restore it if other code up the stack needs to see it.
+            Thread.currentThread().interrupt();
+        } finally {
+            // safe place to release resources / run cleanup
+        }
+    }
+}
+
+Worker w = new Worker();
+w.start();
+// ... later, request cancellation ...
+w.interrupt(); // cooperative request, not a forced kill
+```
+
+### Exam-safe summary
+> `Thread.stop()` is deprecated and unsafe because it can terminate a thread abruptly and leave shared data in an inconsistent state; it should not be used in modern Java, and there is no standard safe `Thread.kill()` API. The safer approach is cooperative cancellation using `interrupt()` (or a shared flag): `interrupt()` sets the interrupted flag and can cause blocking calls like `sleep()`, `wait()`, and `join()` to throw `InterruptedException`, but it does not forcibly kill the thread — the thread must check/respond and exit on its own terms.
