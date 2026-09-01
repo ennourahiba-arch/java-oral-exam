@@ -9,7 +9,7 @@ A thread is the smallest unit of execution within a program, representing a sequ
 - [4) Deadlock and Prevention via Global Lock Ordering](#4-deadlock-and-prevention-via-global-lock-ordering)
 - [5) Starvation vs Deadlock](#5-starvation-vs-deadlock)
 - [6) `volatile`: Visibility, Ordering, and Limits](#6-volatile-visibility-ordering-and-limits)
-- [7) `sleep()`, `wait()`, `notify()`, `notifyAll()`](#7-sleep-wait-notify-notifyall)
+- [7) `sleep()`, `wait()`, `notify()`, `notifyAll()`, `join()`](#7-sleep-wait-notify-notifyall-join)
 - [8) Precision Corrections / Exam-Safe Refinements](#8-precision-corrections--exam-safe-refinements)
 - [9) High-Value Oral One-Liners to Memorize](#9-high-value-oral-one-liners-to-memorize)
 - [10) Possible Professor Questions (with Model Answers)](#10-possible-professor-questions-with-model-answers)
@@ -191,10 +191,10 @@ Worker: 2             ← happens in parallel
 | **Can call multiple times** | Yes (it's just a method) | No (throws `IllegalThreadStateException`) |
 
 ### Why This Matters
-If you always call `run()` directly, **your code runs sequentially** — defeating the entire purpose of threading. You get **no concurrency benefit**. Use `start()` when you want true concurrent execution across multiple threads.
+If you always call `run()` directly, **your code runs sequentially** — defeating the entire purpose of threading. You get **no concurrency benefit**. Use `start()` when you want true concurrent execution.
 
 ### Exam Precision
-> `start()` initiates the thread lifecycle: the JVM creates a new thread and schedules it to execute `run()` asynchronously. Calling `run()` directly bypasses thread creation entirely and executes synchronously on the calling thread.
+> `start()` initiates the thread lifecycle: the JVM creates a new thread and schedules it to execute `run()` asynchronously. Calling `run()` directly bypasses thread creation entirely and executes synchronously on the current thread.
 
 ---
 
@@ -262,7 +262,7 @@ They are different concurrency failures.
 Example scenario: lower-priority thread repeatedly preempted by constant higher-priority arrivals.
 
 ### Strong contrast line
-> Deadlock is a permanent standstill caused by circular resource dependencies — mathematically guaranteed to never resolve on its own. Starvation is a fairness problem where a thread is repeatedly denied resource access indefinitely but is not structurally locked in a cycle.
+> Deadlock is a permanent standstill caused by circular resource dependencies — mathematically guaranteed to never resolve on its own. Starvation is a fairness problem where a thread is repeatedly postponed and may suffer indefinite delay, but the system is not structurally stuck.
 
 ---
 
@@ -331,9 +331,12 @@ x++; // still non-atomic (read-modify-write)
 
 So `volatile` is excellent for flags, but not a replacement for `synchronized`/locks in compound critical sections.
 
+### Important warning about `Thread.stop()`
+Exactly right — `stop()` kills the thread instantly, wherever it happens to be, even mid-way through modifying shared data or holding locks. It releases any locks it held abruptly, potentially leaving shared objects in a corrupted, inconsistent state, with no chance for cleanup (like a finally block) to run properly. That's why the cooperative approach (flag or interrupt()) is the safe standard — the thread gets to notice the stop request and exit cleanly on its own terms.
+
 ---
 
-## 7) `sleep()`, `wait()`, `notify()`, `notifyAll()`
+## 7) `sleep()`, `wait()`, `notify()`, `notifyAll()`, `join()`
 
 These are core coordination primitives and very common oral exam questions.
 
@@ -385,13 +388,43 @@ synchronized (lock) {
 }
 ```
 
+### `join()`
+- `join()` is a **`Thread`** method used to wait until another thread finishes.
+- If thread `t` calls `join()`, the current thread pauses until `t` terminates.
+- `join()` can also take a timeout: `join(ms)` or `join(ms, nanos)`.
+- `join()` does **not** stop the target thread; it only waits for it.
+- State mapping:
+  - `join()` → **WAITING**
+  - `join(1000)` → **TIMED_WAITING**
+
+```java
+Thread t = new Thread(() -> {
+    try {
+        Thread.sleep(500);
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    }
+});
+
+t.start();
+t.join(); // main thread waits until t finishes
+System.out.println("Worker finished");
+```
+
+### Why `join()` matters
+Use `join()` when one thread must wait for another thread's result or completion before continuing, for example:
+- waiting for a background task to complete,
+- ensuring all worker threads finish before printing final results,
+- coordinating thread shutdown.
+
 ### State mapping summary
 - `sleep(1000)` → `TIMED_WAITING`
 - `wait()` → `WAITING`
 - `wait(1000)` / `join(1000)` → `TIMED_WAITING`
+- `join()` → `WAITING`
 - waiting to enter `synchronized` → `BLOCKED`
 
-### `sleep()` vs `wait()` (must-know contrast)
+### `sleep()` vs `wait()` vs `join()`
 - `sleep()`:
   - Thread method
   - pure timed pause
@@ -402,6 +435,10 @@ synchronized (lock) {
   - must hold monitor to call
   - **does** release monitor while waiting
   - resumes after notification + monitor reacquisition
+- `join()`:
+  - Thread method
+  - waits for **another thread to terminate**
+  - useful for sequencing thread completion
 
 ### Mini coordination example
 ```java
@@ -423,7 +460,7 @@ class Signal {
 ```
 
 ### Oral-ready precision line
-> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not release locks.
+> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not release any locks, and `join()` is a `Thread` method that waits for another thread to terminate.
 
 ---
 
@@ -455,6 +492,7 @@ class Signal {
 - "Deadlock is permanent circular waiting; starvation is indefinite postponement caused by unfair scheduling."
 - "`volatile` guarantees visibility and ordering (happens-before) for a variable across threads, but not mutual exclusion or compound-operation atomicity."
 - "`sleep()` does not release locks; `wait()` releases the monitor and requires synchronized context."
+- "`join()` makes one thread wait for another thread to finish."
 
 ---
 
@@ -495,3 +533,6 @@ class Signal {
 
 ### Q12) Can a terminated thread be restarted?
 **A:** No. Once terminated, that `Thread` instance cannot be started again; create a new thread object.
+
+### Q13) What does `join()` do?
+**A:** It makes the current thread wait until the target thread finishes; `join(timeout)` waits at most the given time.
