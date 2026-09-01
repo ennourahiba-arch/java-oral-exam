@@ -9,7 +9,7 @@ A thread is the smallest unit of execution within a program, representing a sequ
 - [4) Deadlock and Prevention via Global Lock Ordering](#4-deadlock-and-prevention-via-global-lock-ordering)
 - [5) Starvation vs Deadlock](#5-starvation-vs-deadlock)
 - [6) `volatile`: Visibility, Ordering, and Limits](#6-volatile-visibility-ordering-and-limits)
-- [7) `sleep()`, `wait()`, `notify()`, `notifyAll()`](#7-sleep-wait-notify-notifyall)
+- [7) `sleep()`, `wait()`, `notify()`, `notifyAll()`, and Interruption](#7-sleep-wait-notify-notifyall-and-interruption)
 - [8) Precision Corrections / Exam-Safe Refinements](#8-precision-corrections--exam-safe-refinements)
 - [9) High-Value Oral One-Liners to Memorize](#9-high-value-oral-one-liners-to-memorize)
 - [10) Possible Professor Questions (with Model Answers)](#10-possible-professor-questions-with-model-answers)
@@ -333,7 +333,7 @@ So `volatile` is excellent for flags, but not a replacement for `synchronized`/l
 
 ---
 
-## 7) `sleep()`, `wait()`, `notify()`, `notifyAll()`
+## 7) `sleep()`, `wait()`, `notify()`, `notifyAll()`, and Interruption
 
 These are core coordination primitives and very common oral exam questions.
 
@@ -403,6 +403,24 @@ synchronized (lock) {
   - **does** release monitor while waiting
   - resumes after notification + monitor reacquisition
 
+### `interrupt()` and thread termination
+- `interrupt()` is the safer, **cooperative** way to request that a thread stop.
+- It sets the target thread's interrupted flag. If that thread is blocked in `sleep()`, `wait()`, or `join()`, the call wakes by throwing `InterruptedException`.
+- It does **not** forcibly kill the thread; the thread must check or respond to interruption and finish its work safely.
+- `Thread.stop()` is deprecated and unsafe: it forcefully stops a thread and can leave shared state inconsistent. Do not use it in modern Java.
+- There is no standard safe `Thread.kill()` API in Java; if mentioned, it is not a normal Java mechanism for stopping threads.
+
+```java
+try {
+    while (!Thread.currentThread().isInterrupted()) {
+        // work
+        Thread.sleep(1000);
+    }
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt(); // preserve interrupt status
+}
+```
+
 ### Mini coordination example
 ```java
 class Signal {
@@ -434,7 +452,7 @@ class Signal {
 
 2. **Termination wording**  
    Prefer: a thread terminates when `run()` exits normally or by uncaught exception.  
-   Avoid relying on deprecated `Thread.stop()` language.
+   Request cooperative cancellation with `interrupt()`; do not use deprecated, unsafe `Thread.stop()`.
 
 3. **Volatile wording precision**  
    Use visibility + happens-before terminology, not absolute "never cached."
@@ -455,6 +473,8 @@ class Signal {
 - "Deadlock is permanent circular waiting; starvation is indefinite postponement caused by unfair scheduling."
 - "`volatile` guarantees visibility and ordering (happens-before) for a variable across threads, but not mutual exclusion or compound-operation atomicity."
 - "`sleep()` does not release locks; `wait()` releases the monitor and requires synchronized context."
+- "`interrupt()` requests cooperative cancellation: it sets the interrupted flag and does not forcibly kill a thread."
+- "`Thread.stop()` is deprecated and unsafe; Java has no standard safe `Thread.kill()` API."
 
 ---
 
@@ -495,3 +515,9 @@ class Signal {
 
 ### Q12) Can a terminated thread be restarted?
 **A:** No. Once terminated, that `Thread` instance cannot be started again; create a new thread object.
+
+### Q13) What is the safe alternative to `Thread.stop()`?
+**A:** Use `interrupt()` to request cooperative cancellation. It sets the interrupted flag and can cause `sleep()`, `wait()`, or `join()` to throw `InterruptedException`; the thread must respond and terminate safely.
+
+### Q14) Is there a `Thread.kill()` method in Java?
+**A:** No. Java has no standard safe `Thread.kill()` API for stopping threads.
