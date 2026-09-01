@@ -417,7 +417,7 @@ try {
         Thread.sleep(1000);
     }
 } catch (InterruptedException e) {
-    Thread.currentThread().interrupt(); // preserve interrupt status
+    Thread.currentThread().interrupt(); // restore status before ending this task
 }
 ```
 
