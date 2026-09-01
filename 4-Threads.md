@@ -422,27 +422,57 @@ class Signal {
 }
 ```
 
+### Thread termination and interruption: `stop()` vs `interrupt()`
+
+- **`Thread.stop()`** is **deprecated and unsafe**. It can terminate a thread abruptly and leave shared state inconsistent. It may break invariants, leave locks or shared data in a bad state, and should not be used in modern Java.
+- There is **no standard safe `Thread.kill()`** in Java. If someone mentions `kill()`, treat it as not a normal Java API for stopping threads.
+- **`interrupt()`** is the safer cooperative cancellation mechanism. It sets the thread's interrupt status (interrupted flag) and can wake blocking calls such as `sleep()`, `wait()`, and `join()` by causing `InterruptedException`.
+- `interrupt()` does **not** forcibly kill the thread. The thread must notice the interrupt and decide how to clean up and exit.
+
+```java
+class Worker implements Runnable {
+    @Override
+    public void run() {
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                // do work
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // preserve interrupt status
+                break; // exit cleanly
+            }
+        }
+    }
+}
+```
+
+### Exam-safe warning
+> `Thread.stop()` is dangerous because it can terminate a thread abruptly and leave shared data or lock state inconsistent. The modern approach is cooperative cancellation with a flag or `interrupt()` so the thread can exit cleanly.
+
 ### Oral-ready precision line
-> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not release locks.
+> `wait()`/`notify()` are monitor-based coordination methods on `Object`; `wait()` releases the monitor and suspends until notification, while `sleep()` is a timed pause on `Thread` that does not release locks. `interrupt()` is the safe cooperative way to request cancellation; it sets the interrupt flag and may throw `InterruptedException` from blocking calls, but it does not forcibly kill the thread.
 
 ---
 
 ## 8) Precision Corrections / Exam-Safe Refinements
 
-1. **State model precision**  
+1. **State model precision**
    Conceptual "running" is okay for intuition, but official Java enum has no `RUNNING`; execution is represented by `RUNNABLE`.
 
-2. **Termination wording**  
-   Prefer: a thread terminates when `run()` exits normally or by uncaught exception.  
-   Avoid relying on deprecated `Thread.stop()` language.
+2. **Termination wording**
+   Prefer: a thread terminates when `run()` exits normally or by uncaught exception.
+   `Thread.stop()` is deprecated and unsafe; modern Java uses cooperative cancellation with a flag or `interrupt()`.
 
-3. **Volatile wording precision**  
+3. **Interruption wording**
+   `interrupt()` sets the interrupted flag and may cause blocking methods like `sleep()`, `wait()`, and `join()` to throw `InterruptedException`; it does not forcibly kill the thread.
+
+4. **Volatile wording precision**
    Use visibility + happens-before terminology, not absolute "never cached."
 
-4. **Atomicity reminder**  
+5. **Atomicity reminder**
    `volatile` does not make compound operations atomic (`x++` still unsafe without additional synchronization/atomics).
 
-5. **Deadlock example robustness**  
+6. **Deadlock example robustness**
    Ensure unique ordering key (ID uniqueness) or add deterministic tie-breaker.
 
 ---
@@ -455,6 +485,9 @@ class Signal {
 - "Deadlock is permanent circular waiting; starvation is indefinite postponement caused by unfair scheduling."
 - "`volatile` guarantees visibility and ordering (happens-before) for a variable across threads, but not mutual exclusion or compound-operation atomicity."
 - "`sleep()` does not release locks; `wait()` releases the monitor and requires synchronized context."
+- "`Thread.stop()` is deprecated and unsafe; it may leave shared state or locks inconsistent. Prefer cooperative cancellation with `interrupt()` or a stop flag."
+- "There is no standard safe `Thread.kill()` in Java; the normal pattern is `interrupt()` plus a thread-managed exit condition."
+- "`interrupt()` sets the interrupted flag and can wake `sleep()`, `wait()`, and `join()` with `InterruptedException`, but it does not forcibly kill the thread."
 
 ---
 
@@ -495,3 +528,9 @@ class Signal {
 
 ### Q12) Can a terminated thread be restarted?
 **A:** No. Once terminated, that `Thread` instance cannot be started again; create a new thread object.
+
+### Q13) Why is `Thread.stop()` discouraged?
+**A:** It is deprecated and unsafe because it can terminate a thread abruptly while it is updating shared data or holding locks, leaving the program in an inconsistent state. Modern Java prefers cooperative cancellation.
+
+### Q14) What does `interrupt()` do?
+**A:** It sets the thread's interrupted status and may wake blocked calls such as `sleep()`, `wait()`, and `join()` by throwing `InterruptedException`. It does not forcibly kill the thread; the receiving thread must check the flag and exit cleanly.
