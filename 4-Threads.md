@@ -533,4 +533,4 @@ class Worker implements Runnable {
 **A:** It is deprecated and unsafe because it can terminate a thread abruptly while it is updating shared data or holding locks, leaving the program in an inconsistent state. Modern Java prefers cooperative cancellation.
 
 ### Q14) What does `interrupt()` do?
-**A:** It sets the thread's interrupted status and may wake blocked calls such as `sleep()`, `wait()`, and `join()` by throwing `InterruptedException`. It does not forcefully kill the thread; the receiving thread must check the flag and exit cleanly.
+**A:** It sets the thread's interrupted status and may wake blocked calls such as `sleep()`, `wait()`, and `join()` by throwing `InterruptedException`. It does not forcibly kill the thread; the receiving thread must check the flag and exit cleanly.
