@@ -17,6 +17,7 @@
   - [Same class definition, different specific versions](#same-class-definition-different-specific-versions)
   - [Type erasure](#type-erasure)
   - [Why `new T()` is not allowed](#why-new-t-is-not-allowed)
+  - [Wildcards in generics](#wildcards-in-generics)
 - [Professor questions and answers](#professor-questions-and-answers)
 
 ---
@@ -80,7 +81,7 @@ myCat.eat();
 ```
 The compiler checks, right when you compile, that `Cat` and `eat()` really exist.
 
-**Reflection** lets a program inspect and use classes, methods, and fields **at runtime**, using their names as plain strings, instead of writing them directly into the code. It's like being handed a name on a piece of paper while the program is already running, and going to look up whatever matches that name.
+**Reflection** lets a program inspect and use classes, methods, and fields **at runtime**, using their names as plain strings, instead of writing them directly into the code. It's like being handed a [...]
 
 **Helpful addition:**  
 Reflection is often used when the program must be flexible and cannot know everything in advance. For example:
@@ -109,7 +110,7 @@ Method m = theClass.getMethod("eat");                     // find a method by na
 m.invoke(obj);                                             // call it dynamically — like "obj.eat()"
 ```
 
-**Trade-off:** reflection sacrifices compile-time safety. A typo in a class or method name (e.g. `"eatt"` instead of `"eat"`) won't be caught until the program actually runs and tries to resolve it — it would throw `NoSuchMethodException` at runtime, not a compile error.
+**Trade-off:** reflection sacrifices compile-time safety. A typo in a class or method name (e.g. `"eatt"` instead of `"eat"`) won't be caught until the program actually runs and tries to resolve [...]
 
 **Helpful addition:**  
 Reflection is powerful, but it is slower and more error-prone than direct method calls.  
@@ -136,7 +137,7 @@ They let you inspect:
 
 ### Reflection and compiled classes (not raw files)
 
-Reflection does **not** read `.java` source files or search folders like a text search. By the time reflection inspects something, the source has already been compiled into `.class` files (bytecode), and those compiled classes are what's loaded into the running program.
+Reflection does **not** read `.java` source files or search folders like a text search. By the time reflection inspects something, the source has already been compiled into `.class` files (bytecode), [...]
 
 ```java
 Class<?> theClass = Class.forName("Cat");
@@ -159,7 +160,7 @@ java -cp bin Main
 ```
 `-cp bin` tells the JVM to look inside the `bin` folder for any needed `.class` files. Multiple locations can be listed at once (separated by `;` on Windows, `:` on Mac/Linux), including `.jar` files.
 
-In the simplest case (running directly from one folder, no IDE/build tool), the classpath defaults to the current folder — so `.class` files sitting next to the `.java` files they came from will be found automatically. In real projects (IDEs, build tools), compiled output usually goes to a separate folder (e.g. `bin/`, `out/`), and the classpath is configured to point there instead.
+In the simplest case (running directly from one folder, no IDE/build tool), the classpath defaults to the current folder — so `.class` files sitting next to the `.java` files they came from will be [...]
 
 When `Class.forName("Cat")` runs, the JVM searches every location on the classpath, in order, until it finds a match — or throws an exception if nothing matches anywhere.
 
@@ -186,7 +187,7 @@ try {
 
 ### Stack frames and reflection
 
-The **call stack** is how Java keeps track of "where to return to" as methods call other methods. Each method call is *pushed* onto the stack; when it finishes, it's *popped* off, and control returns to whoever called it — last in, first out (LIFO).
+The **call stack** is how Java keeps track of "where to return to" as methods call other methods. Each method call is *pushed* onto the stack; when it finishes, it's *popped* off, and control returns [...]
 
 ```java
 void methodA() { methodB(); }
@@ -194,7 +195,7 @@ void methodB() { methodC(); }
 void methodC() { /* stack here: methodC, methodB, methodA, main */ }
 ```
 
-Uncontrolled recursion (methods calling each other endlessly) can grow the stack until it runs out of space — this is what `StackOverflowError` means (a separate, unrelated risk from normal Java code, not specific to reflection).
+Uncontrolled recursion (methods calling each other endlessly) can grow the stack until it runs out of space — this is what `StackOverflowError` means (a separate, unrelated risk from normal Java cod[...]
 
 Reflection can safely **inspect** the current call stack:
 ```java
@@ -204,7 +205,7 @@ for (StackTraceElement frame : stack) {
 }
 ```
 
-Actually **manipulating** stack frames isn't something Java's reflection API safely supports — doing so would require unsupported, low-level tricks that bypass the JVM's normal, automatic bookkeeping. Combined with reflection's general lack of compile-time checking, this could corrupt program state or cause crashes only visible at runtime — which is why it's considered unsafe and generally discouraged.
+Actually **manipulating** stack frames isn't something Java's reflection API safely supports — doing so would require unsupported, low-level tricks that bypass the JVM's normal, automatic bookkeepin[...]
 
 **Helpful addition:**  
 The stack trace is very useful when debugging exceptions.  
@@ -216,7 +217,7 @@ It shows the path of method calls that led to the error.
 
 ### The problem generics solve
 
-Without generics, a container class would need a separate, nearly-identical class written for every type it might hold — one for holding a String, another for an Integer, another for a Cat — even though the actual logic (put something in, get it back out) is identical every time. That's repetitive and wasteful.
+Without generics, a container class would need a separate, nearly-identical class written for every type it might hold — one for holding a String, another for an Integer, another for a Cat — even [...]
 
 Generics let you write **one** class with a placeholder standing in for "whatever type this particular instance will hold," decided later, each time the class is used.
 
@@ -281,7 +282,7 @@ Animal a = new Dog("Rex");
 a.eat();   // fine — Animal declares eat()
 a.bark();  // ERROR — Animal reference type doesn't expose bark(), even though it's really a Dog
 ```
-Both are compile-time restrictions based on a **declared type**, catching mistakes before the program runs — this is generics' compile-time type-safety benefit, compared to the old pre-generics approach of storing everything as `Object` and manually casting (which only fails at runtime if the cast is wrong).
+Both are compile-time restrictions based on a **declared type**, catching mistakes before the program runs — this is generics' compile-time type-safety benefit, compared to the old pre-generics appr[...]
 
 **Helpful addition:**  
 So generics help you:
@@ -292,7 +293,7 @@ So generics help you:
 
 ### Type erasure
 
-Even though you write `Box<String>` and `Box<Integer>` in source code, this distinction doesn't exist anymore once compiled — Java "erases" the type information. At runtime, both are literally the same class:
+Even though you write `Box<String>` and `Box<Integer>` in source code, this distinction doesn't exist anymore once compiled — Java "erases" the type information. At runtime, both are literally the s[...]
 
 ```java
 Box<String> stringBox = new Box<>();
@@ -314,7 +315,7 @@ class Box<T> {
 }
 ```
 
-`new` always requires a real, concrete class name that the compiler can verify exists. `T` is only ever a placeholder, replaced by *something different* depending on which specific box is being used — and because of type erasure, by the time the code runs, there's no `T` information left at all. There's nothing concrete for `new` to build.
+`new` always requires a real, concrete class name that the compiler can verify exists. `T` is only ever a placeholder, replaced by *something different* depending on which specific box is being used [...]
 
 **Helpful addition:**  
 If you need to create an object of a generic type, common alternatives include:
@@ -334,6 +335,104 @@ class Box<T> {
 }
 ```
 
+### Wildcards in generics
+
+Wildcards are a way to write generic code that can work with **unknown or partially-known types**. They use the `?` symbol (pronounced "question mark" or "wildcard") and are often used in method parameters to create more flexible, reusable methods.
+
+#### Unbounded wildcard: `<?>`
+
+This is the most flexible wildcard — it accepts a generic type with *any* type parameter.
+
+```java
+void printBox(Box<?> box) {
+    System.out.println(box.get()); // works with any Box type
+}
+
+printBox(new Box<String>());  // fine — Box<?> accepts Box<String>
+printBox(new Box<Integer>()); // fine — Box<?> accepts Box<Integer>
+printBox(new Box<Cat>());     // fine — Box<?> accepts Box<Cat>
+```
+
+Without wildcards, you would need to write separate methods for each type — with the wildcard, one method handles them all.
+
+**Helpful addition:**  
+The unbounded wildcard `Box<?>` is useful when:
+- the method doesn't care what type is inside the box
+- you only need to read (get) values, not write (put) them
+- you're building flexible utility methods
+
+#### Upper bounded wildcard: `<? extends Type>`
+
+This wildcard restricts the unknown type to be `Type` or a subtype of `Type` — it sets an upper limit on what's allowed.
+
+```java
+void processNumbers(List<? extends Number> list) {
+    // list can hold any Number subtype: Integer, Double, Float, etc.
+    for (Number n : list) {
+        System.out.println(n);
+    }
+}
+
+processNumbers(new ArrayList<Integer>());  // fine — Integer extends Number
+processNumbers(new ArrayList<Double>());   // fine — Double extends Number
+processNumbers(new ArrayList<String>());   // COMPILE ERROR — String does not extend Number
+```
+
+**Helpful addition:**  
+Upper bounded wildcards are useful when:
+- you need to call methods that only a common superclass provides
+- you want to accept a range of related types
+- you're reading from the collection, not writing to it
+
+#### Lower bounded wildcard: `<? super Type>`
+
+This wildcard restricts the unknown type to be `Type` or a supertype of `Type` — it sets a lower limit on what's allowed.
+
+```java
+void addNumbers(List<? super Integer> list) {
+    // list can hold Integer, Number, Object — anything "above" Integer in the hierarchy
+    list.add(42); // fine — can add an Integer to List<Integer>, List<Number>, List<Object>
+}
+
+addNumbers(new ArrayList<Integer>());  // fine — Integer
+addNumbers(new ArrayList<Number>());   // fine — Number is a supertype of Integer
+addNumbers(new ArrayList<Object>());   // fine — Object is a supertype of Integer
+addNumbers(new ArrayList<String>());   // COMPILE ERROR — String is not a supertype of Integer
+```
+
+**Helpful addition:**  
+Lower bounded wildcards are useful when:
+- you need to *add* elements (write) to a collection
+- you're working with a type hierarchy and need flexibility in accepting supertypes
+- you need a more restrictive bound than unbounded
+
+#### Why wildcards exist
+
+Wildcards solve the **type parameter inflexibility problem** — without them, methods must accept exactly one specific generic type. With wildcards, you can write methods that work across a *range* of types while still maintaining type safety.
+
+**Example of the problem without wildcards:**
+```java
+// WITHOUT wildcards — too restrictive
+void printBox(Box<Object> box) {
+    // This does NOT accept Box<String> or Box<Integer>
+    // because Box<String> is not a subtype of Box<Object>
+}
+```
+
+**Example solved with wildcards:**
+```java
+// WITH unbounded wildcard — flexible
+void printBox(Box<?> box) {
+    // This DOES accept Box<String>, Box<Integer>, Box<Cat>, etc.
+}
+```
+
+**Helpful addition:**  
+Wildcards and generics together give you:
+- **code reuse** — one method works with many types
+- **type safety** — the compiler still checks bounds and prevents misuse
+- **flexibility** — you can express ranges of acceptable types
+
 ---
 
 ## Professor questions and answers
@@ -342,10 +441,10 @@ class Box<T> {
 A: A feature that lets a program inspect and use classes, methods, and fields at runtime, instead of everything being fixed at compile time.
 
 **Q: How does normal Java code work, in contrast to reflection?**
-A: If the class and method are known while writing the code (e.g. `new Cat().eat()`), the compiler checks they exist right at compile time — no reflection needed, and this works fine across different files.
+A: If the class and method are known while writing the code (e.g. `new Cat().eat()`), the compiler checks they exist right at compile time — no reflection needed, and this works fine across differen[...]
 
 **Q: Why is reflection needed at all?**
-A: Sometimes a class or method name is only known at runtime (e.g. from user input or a config file), stored as a `String` — and normal syntax like `new` can't work with a name that's only available as runtime data.
+A: Sometimes a class or method name is only known at runtime (e.g. from user input or a config file), stored as a `String` — and normal syntax like `new` can't work with a name that's only available[...]
 
 **Q: Why can't you write `new someClassName()` if `someClassName` is a String variable?**
 A: `new` requires a literal class name the compiler can check immediately. A variable's value might not even be decided until the program runs, so the compiler can't verify it in advance.
@@ -369,7 +468,7 @@ A: It sacrifices compile-time safety — typos or missing classes/methods are on
 A: `Class` (structure), `Constructor` (create instances), `Method` (invoke methods), `Field` (read/write field values).
 
 **Q: What is a generic type, and why does it exist?**
-A: A generic type (e.g. `Box<T>`) lets one class definition work with different types, decided when the class is used, instead of writing a separate class per type — while still keeping compile-time type checking.
+A: A generic type (e.g. `Box<T>`) lets one class definition work with different types, decided when the class is used, instead of writing a separate class per type — while still keeping compile[...]
 
 **Q: Are `Box<String>` and `Box<Integer>` the same class or different classes?**
 A: Same class definition/source code, but the compiler treats them as different, incompatible specific types — while at runtime, due to type erasure, they're actually the exact same class.
@@ -385,3 +484,18 @@ A: It allows dynamic behavior when types, methods, or classes are not known unti
 
 **Q: What is the main drawback of both reflection and generics if misused?**
 A: Reflection can become unsafe and error-prone at runtime, while generics can be misunderstood if people expect type information to still exist at runtime.
+
+**Q: What are wildcards in generics?**
+A: Wildcards (`?`) are placeholders for unknown types in generics, used to write flexible methods that work with a range of types — unbounded (`<?>`), upper-bounded (`<? extends Type>`), or lower-bounded (`<? super Type>`).
+
+**Q: When would you use an unbounded wildcard `<?>`?**
+A: When a method doesn't care what specific type is held in a generic container and only needs to read values, not write them.
+
+**Q: When would you use an upper-bounded wildcard `<? extends Type>`?**
+A: When you need to accept a generic type or any subtype of it — useful for reading values of a common supertype.
+
+**Q: When would you use a lower-bounded wildcard `<? super Type>`?**
+A: When you need to add/write elements to a collection of a specific type or its supertypes — common when adding to a collection.
+
+**Q: Why are wildcards necessary if we already have generics?**
+A: Generics alone are too restrictive — `Box<String>` is not compatible with a method expecting `Box<Object>`. Wildcards solve this by allowing a range of generic types while maintaining type safety.
